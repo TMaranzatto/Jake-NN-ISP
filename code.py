@@ -1,41 +1,12 @@
 import random
 import math
-class simplePerceptron:
-    #trying to get the hang of the interactions between neurons...
-    #perceptrons may help with this
-    #this perceptron will be trained to see if a number is above or below a line defined by f(x)
-    def __init__(self, n):
-        self.weights = [random.uniform(-1,1) for _ in range(n)]
-        self.constant = 0.01
-        
-    def activate(self, number):
-        if number > 0:
-            return 1
-        else:
-            return -1
-        
-    def feedforward(self, inputs):
-        summ = 0
-        for i in range(len(self.weights)):
-            summ += inputs[i] * self.weights[i]
-
-        return self.activate(summ)
-
-    def train(self, inputs, desired):
-        guess = feedforward(inputs)
-        error = desired - guess
-        for i in range(len(self.weights)):
-            self.weights[i] += constant * error * inputs[i]
-
-class Trainer:
-    def __init__(self, x, y, a):
-        self.inputs = [x, y, 1]
-        self.answer = a
-
-##################################################################
+import numpy as np
 
 class Op(object):
     def feedforward(self):
+        raise NotImplementedError("you need to implement this")
+
+    def backprop(self, sensitivity, learningrate):
         raise NotImplementedError("you need to implement this")
     
 class sumOp(Op):
@@ -47,19 +18,49 @@ class sumOp(Op):
         self.inputs = someOps
         self.weights = [random.uniform(-1,1) for _ in range(len(someOps))]
         self.bias = random.uniform(-1,1)
+        self.value = 0
 
     def feedforward(self):
         #takes in a vector of inputs v, multiplies each element by the set weight, and adds bias
         v = [self.inputs(i).feedforward() for i in range(len(self.inputs))]
-        u = self.constant + sum([a*b for a,b in zip(self.weights, v)])
-        return u
+        u = self.bias + sum([a*b for a,b in zip(self.weights, v)])
+        self.value = u
+        return self.value
 
-    def backprop(self, inputs, desired):
-        return None
+    def getouts(self):
+        outputs = []
+        for sigOp in outputs:
+            outputs.append(sigOp.feedForward())
+        return outputs
+    
+    def geterror(self, datapoint):
+        total = 0
+        for i in range(datapoint.desired):
+            total += outputs[i].getError(datapoint, i)
+
+        return total
+
+    def backprop(self, sens, learningrate):
+        ##not optimized but it should work
+        sensbias = sens * 1
+        sensWeights = []
+        sensinputVals = []
+        for i in range(len(self.weights)):
+            sensWeights.append(sens * self.inputs[i].value)
+            sensinputVals.append(sens * self.weights[i])
+            
+        self.bias -= sensbias * learningrate
+        for i in range(len(self.weights)):
+            w -= learningrate * sensWeights[i]
+
+        for i in range(len(inputs)):
+            inputs[i].backprop(sensinputVals[i], learningrate)
+            
 
 class sigmoidOp(Op):
     def __init__(self, singleOp):
         self.input = singleOp
+        self.value = 0
 
     def g(x):
         #sigmoid function
@@ -68,24 +69,29 @@ class sigmoidOp(Op):
     def dg(x):
         #derivitive of sigmoid
         return g(x) * (1 - g(x))
-                        
+    
     def feedforward(self):
         #returns the previous nodes output through sigmoid
-        return g(singleOp.feedforward())
-
-    def geterror(self, datapoint):
+        self.value = g(singleOp.feedforward())
+        return self.value
+    
+    def getsens(self, datapoint, index):
         #assume inputs are already initialized
         #datapoint is a Trainer type
         output = self.feedforward()
-        target = datapoint.desired
-        return .5 * math.pow(abs(output - target), 2)
+        target = datapoint.desired[index]
+        return .5 * (output - target)**2
 
-
+    
+    def backprop(self, sens, learningrate):
+        sens = sens * dg(self.value)
+        self.input.backprop(sens, learningrate)
+    
                  
 class inputOps(Op):
     def __init__(self):
         #inn is a single value
-        self.value = None
+        self.value = 0
 
     def setData(self, file):
         doSomethingWithFile = 0
@@ -95,12 +101,8 @@ class inputOps(Op):
         #as this is an input node, we only need to return value
         return self.value
 
-class Trainer:
-    def __init__(self, inputs, desired):
-        self.inputs = inputs
-        self.desired = desired
-
-def backprop(trainingdata, inputneurons):
+    def backprop(self, sensitivity, learningrate):
+        pass
     
 
 
