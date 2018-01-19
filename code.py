@@ -17,12 +17,14 @@ class sumOp(Op):
         #we randomize this neurons weights and bias
         self.inputs = someOps
         self.weights = [random.uniform(-1,1) for _ in range(len(someOps))]
-        self.bias = random.uniform(-1,1)
+        self.bias = 1
         self.value = 0
 
     def feedforward(self):
         #takes in a vector of inputs v, multiplies each element by the set weight, and adds bias
-        v = [self.inputs(i).feedforward() for i in range(len(self.inputs))]
+        v = []
+        for i in self.inputs:
+            v.append(i.feedforward())
         u = self.bias + sum([a*b for a,b in zip(self.weights, v)])
         self.value = u
         return self.value
@@ -42,19 +44,20 @@ class sumOp(Op):
 
     def backprop(self, sens, learningrate):
         ##not optimized but it should work
-        sensbias = sens * 1
-        sensWeights = []
+        sensbias = sens
+        #sensWeights = []
         sensinputVals = []
         for i in range(len(self.weights)):
-            sensWeights.append(sens * self.inputs[i].value)
+            #changing the weights respectively
+            sensWeight = sens * self.inputs[i].value
+            #finding the sensitivity to the input vals
             sensinputVals.append(sens * self.weights[i])
-            
+            self.weights[i] -= learningrate * sensWeight
+        #easy enough
         self.bias -= sensbias * learningrate
-        for i in range(len(self.weights)):
-            w -= learningrate * sensWeights[i]
-
-        for i in range(len(inputs)):
-            inputs[i].backprop(sensinputVals[i], learningrate)
+        #calls backprop on previous things
+        for i in range(len(self.inputs)):
+            self.inputs[i].backprop(sensinputVals[i], learningrate)
             
 
 class sigmoidOp(Op):
@@ -62,40 +65,40 @@ class sigmoidOp(Op):
         self.input = singleOp
         self.value = 0
 
-    def g(x):
+    def g(self, x):
         #sigmoid function
-        return 1/(1+math.pow(math.e, x * -1))
+        return 1/(1+ (math.e) ** (x * -1))
 
-    def dg(x):
+    def dg(self, x):
         #derivitive of sigmoid
-        return g(x) * (1 - g(x))
+        return self.g(x) * (1 - self.g(x))
     
     def feedforward(self):
         #returns the previous nodes output through sigmoid
-        self.value = g(singleOp.feedforward())
+        self.value = self.g(self.input.feedforward())
         return self.value
     
-    def getsens(self, datapoint, index):
+    def getsens(self, datapoint):
         #assume inputs are already initialized
         #datapoint is a Trainer type
-        output = self.feedforward()
-        target = datapoint.desired[index]
-        return .5 * (output - target)**2
+        #simplified for XOR one output
+        self.feedforward()
+        target = datapoint.desired
+        return target - self.value
 
     
     def backprop(self, sens, learningrate):
-        sens = sens * dg(self.value)
+        sens = sens * self.dg(self.value)
         self.input.backprop(sens, learningrate)
     
                  
-class inputOps(Op):
+class inputOp(Op):
     def __init__(self):
-        #inn is a single value
         self.value = 0
 
-    def setData(self, file):
-        doSomethingWithFile = 0
-        #placeholder
+    def setData(self, number):
+        self.value = number
+        #for XOR
 
     def feedforward(self):
         #as this is an input node, we only need to return value
@@ -103,7 +106,76 @@ class inputOps(Op):
 
     def backprop(self, sensitivity, learningrate):
         pass
-    
+
+class Trainer:
+    def __init__(self, x, y, a):
+        self.inputs = [x, y]
+        self.desired = a
+
+#here we set up an xor network:
+        
+#setting up data
+data00 = Trainer(0,0,0)
+data01 = Trainer(0,1,1)
+data10 = Trainer(1,0,1)
+data11 = Trainer(1,1,0)
+
+#setting up network connections.  i1/i2.value = 0
+i1 = inputOp()
+i2 = inputOp()
+s1 = sumOp([i1, i2])
+s2 = sumOp([i1,i2])
+p1 = sigmoidOp(s1)
+p2 = sigmoidOp(s2)
+s3 = sumOp([p1, p2])
+p3 = sigmoidOp(s3)
+
+#now we get the sensitivity to the network:
+print(p3.feedforward())
+#this isnt close to what we want, so we train...
+
+#now we loop and train 4,000 times
+#this loop is gonna be ugly... could clean it up later
+for i in range(1000):
+    #data = 0,0
+    i1.setData(0)
+    i2.setData(0)
+    sens = p3.getsens(data00)
+    p3.backprop(sens, 0.01)
+
+    #data = 0,1
+    i1.setData(0)
+    i2.setData(1)
+    sens = p3.getsens(data01)
+    p3.backprop(sens, 0.01)
+
+    #data = 1,0
+    i1.setData(1)
+    i2.setData(0)
+    sens = p3.getsens(data10)
+    p3.backprop(sens, 0.01)
+
+    #data = 1,1
+    i1.setData(1)
+    i2.setData(1)
+    sens = p3.getsens(data11)
+    p3.backprop(sens, 0.01)
+
+#lets test this with different inputs...
+i1.setData(0)
+i2.setData(0)
+print('data = 0,0 output = ' + str(p3.feedforward()))
+i1.setData(0)
+i2.setData(1)
+print('data = 0,1 output = ' + str(p3.feedforward()))
+i1.setData(1)
+i2.setData(0)
+print('data = 1,0 output = ' + str(p3.feedforward()))
+i1.setData(1)
+i2.setData(1)
+print('data = 1,1 output = ' + str(p3.feedforward()))
+
+
 
 
 
